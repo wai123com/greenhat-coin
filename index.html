@@ -127,6 +127,36 @@
       background: rgba(0, 255, 0, 0.5);
       transform: scale(1.1);
     }
+    .dev-warning {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(255, 0, 0, 0.9);
+      color: white;
+      padding: 20px;
+      border-radius: 10px;
+      text-align: center;
+      z-index: 1000;
+      display: none;
+      box-shadow: 0 0 20px rgba(255, 0, 0, 0.7);
+    }
+    .dev-warning.show {
+      display: block;
+    }
+    .click-hat {
+      position: fixed;
+      width: 100px;
+      height: 100px;
+      z-index: 5;
+      pointer-events: none;
+      animation: fadeOut 1s ease-out forwards;
+    }
+    @keyframes fadeOut {
+      0% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(1.2); }
+      100% { opacity: 0; transform: scale(1.5); }
+    }
     @media (max-width: 640px) {
       .text-6xl { font-size: 2.5rem; }
       .text-4xl { font-size: 2rem; }
@@ -134,6 +164,8 @@
       .hero-img { width: 100%; height: auto; }
       .particle-border { width: 30px; }
       .bgm-control { width: 40px; height: 40px; }
+      .dev-warning { width: 80%; }
+      .click-hat { width: 60px; height: 60px; }
     }
   </style>
 </head>
@@ -143,6 +175,10 @@
       请启用JavaScript以体验绿帽社的炫酷效果！查看
       <a href="https://www.enable-javascript.com/zh/" target="_blank" class="text-green-400 hover:underline">如何启用</a>。
     </p>
+  </div>
+  <div class="dev-warning" id="dev-warning">
+    <p className="text-xl font-bold">嘿！别偷看绿帽币的秘密代码！😜 加入我们的X社区，一起搞乱加密圈！</p>
+    <button onclick="document.getElementById('dev-warning').classList.remove('show')" class="mt-4 bg-green-500 text-white py-2 px-4 rounded hover:bg-green-600">好的，我去玩！</button>
   </div>
   <div class="particle-border particle-border-left">
     <canvas id="particle-canvas-left"></canvas>
@@ -156,7 +192,8 @@
 
   <script type="text/babel">
     function App() {
-      const [isPlaying, setIsPlaying] = React.useState(false);
+      const [isPlaying, setIsPlaying] = React.useState(true);
+      const [clickHats, setClickHats] = React.useState([]);
       const audioRef = React.useRef(null);
 
       React.useEffect(() => {
@@ -165,22 +202,66 @@
 
         // 尝试自动播放
         const playAudio = () => {
-          audioRef.current.play().then(() => {
-            setIsPlaying(true);
-          }).catch(() => {
-            setIsPlaying(false);
-          });
+          const playPromise = audioRef.current.play();
+          if (playPromise !== undefined) {
+            playPromise.then(() => {
+              setIsPlaying(true);
+            }).catch(() => {
+              setIsPlaying(false);
+            });
+          }
         };
+        playAudio();
 
         // 用户交互后启用音频
         const enableAudio = () => {
           if (!isPlaying) {
-            audioRef.current.play();
-            setIsPlaying(true);
+            const playPromise = audioRef.current.play();
+            if (playPromise !== undefined) {
+              playPromise.then(() => {
+                setIsPlaying(true);
+              }).catch(() => {
+                setIsPlaying(false);
+              });
+            }
           }
           document.removeEventListener('click', enableAudio);
+          document.removeEventListener('touchstart', enableAudio);
         };
         document.addEventListener('click', enableAudio);
+        document.addEventListener('touchstart', enableAudio);
+
+        // 点击生成绿帽图片
+        const handleClick = (e) => {
+          const newHat = {
+            id: Date.now(),
+            x: e.clientX - 50, // 居中调整
+            y: e.clientY - 50,
+          };
+          setClickHats((prev) => [...prev, newHat]);
+          setTimeout(() => {
+            setClickHats((prev) => prev.filter((hat) => hat.id !== newHat.id));
+          }, 1000); // 1秒后移除
+        };
+        document.addEventListener('click', handleClick);
+
+        // 禁用右键
+        document.addEventListener('contextmenu', (e) => {
+          e.preventDefault();
+          document.getElementById('dev-warning').classList.add('show');
+        });
+
+        // 禁用开发者工具快捷键
+        document.addEventListener('keydown', (e) => {
+          if (
+            e.key === 'F12' ||
+            (e.ctrlKey && e.shiftKey && e.key === 'I') ||
+            (e.ctrlKey && e.key === 'u')
+          ) {
+            e.preventDefault();
+            document.getElementById('dev-warning').classList.add('show');
+          }
+        });
 
         // Three.js 设置
         const scene = new THREE.Scene();
@@ -312,6 +393,10 @@
           window.removeEventListener('resize', () => {});
           window.removeEventListener('mousemove', () => {});
           document.removeEventListener('click', enableAudio);
+          document.removeEventListener('touchstart', enableAudio);
+          document.removeEventListener('click', handleClick);
+          document.removeEventListener('contextmenu', () => {});
+          document.removeEventListener('keydown', () => {});
         };
       }, []);
 
@@ -326,7 +411,7 @@
       };
 
       const copyAddress = () => {
-        const address = '0x00000000000000000000000000001';
+        const address = '0x000000000000000000000000000000000000001';
         navigator.clipboard.writeText(address).then(() => {
           alert('合约地址已复制到剪贴板！');
         }).catch(() => {
@@ -343,6 +428,18 @@
           >
             {isPlaying ? "🔊" : "🔇"}
           </button>
+          {!isPlaying && (
+            <p className="text-green-400 text-sm absolute top-16 right-4">点击页面开启BGM</p>
+          )}
+          {clickHats.map((hat) => (
+            <img
+              key={hat.id}
+              src="https://youke1.picui.cn/s1/2025/08/05/68918b0f9a5fb.png"
+              alt="小绿帽"
+              className="click-hat"
+              style={{ left: `${hat.x}px`, top: `${hat.y}px` }}
+            />
+          ))}
           <header className="py-20 text-center">
             <img
               src="https://youke1.picui.cn/s1/2025/08/05/68918b0f9a5fb.png"
@@ -464,7 +561,7 @@
                 <h3 className="text-2xl font-bold text-green-400">合约地址</h3>
                 <div className="flex items-center justify-center mt-4">
                   <p className="text-gray-300 bg-gray-800 px-4 py-2 rounded-l-lg">
-                    0x0000000000000000000000000001
+                    0x000000000000000000000000000000000000001
                   </p>
                   <button
                     onClick={copyAddress}
@@ -473,7 +570,7 @@
                     复制
                   </button>
                   <a
-                    href="https://bscscan.com/address/0x00000000000000000000000001"
+                    href="https://bscscan.com/address/0x000000000000000000000000000000000000001"
                     target="_blank"
                     className="text-green-400 hover:underline ml-4"
                   >
@@ -484,11 +581,6 @@
                   通过 <a href="#" target="_blank" className="text-green-400 hover:underline">Four平台</a> 参与绿帽币发射！
                 </p>
               </div>
-              <img
-                src="https://via.placeholder.com/300x200/00FF00/FFFFFF?text=绿帽炸弹"
-                alt="绿帽炸弹"
-                className="mt-8 mx-auto rounded-lg shadow-lg hover:scale-105 transition-transform"
-              />
             </div>
           </section>
 
@@ -555,7 +647,7 @@
           <footer className="py-10 text-center bg-gray-900/80">
             <p className="text-gray-300">&copy; 2025 绿帽社. 保留所有权利。用绿帽币席卷市场！</p>
             <div className="mt-4 flex justify-center space-x-6">
-              <a href="" className="text-green-400 hover:underline"></a>
+              <a href="https://t.me/" className="text-green-400 hover:underline"></a>
               <a href="https://x.com/lvmaoshetuite" className="text-green-400 hover:underline"></a>
               <a href="#" className="text-green-400 hover:underline"></a>
             </div>
