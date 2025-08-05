@@ -40,14 +40,14 @@
         </script><!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>绿帽社 - 绿帽币</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.production.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.20.6/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.production.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.production.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.20.6/babel.min.js" defer></script>
   <style>
     body {
       background: #0a071b;
@@ -55,13 +55,12 @@
       font-family: 'Arial', sans-serif;
       overflow-x: hidden;
       margin: 0;
+      position: relative;
     }
     #three-canvas {
       position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
       z-index: -1;
     }
     .neon-text {
@@ -90,27 +89,100 @@
     .js-warning.show {
       display: block;
     }
+    .particle-border {
+      position: fixed;
+      top: 0;
+      width: 50px;
+      height: 100%;
+      z-index: 0;
+      overflow: hidden;
+    }
+    .particle-border-left {
+      left: 0;
+    }
+    .particle-border-right {
+      right: 0;
+    }
+    .particle-canvas {
+      width: 100%;
+      height: 100%;
+    }
+    .bgm-control {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 10;
+      background: rgba(0, 255, 0, 0.2);
+      border: 2px solid #00ff00;
+      border-radius: 50%;
+      width: 50px;
+      height: 50px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+      box-shadow: 0 0 15px rgba(0, 255, 0, 0.6);
+    }
+    .bgm-control:hover {
+      background: rgba(0, 255, 0, 0.5);
+      transform: scale(1.1);
+    }
     @media (max-width: 640px) {
       .text-6xl { font-size: 2.5rem; }
       .text-4xl { font-size: 2rem; }
       .text-2xl { font-size: 1.5rem; }
       .hero-img { width: 100%; height: auto; }
+      .particle-border { width: 30px; }
+      .bgm-control { width: 40px; height: 40px; }
     }
   </style>
 </head>
 <body>
   <div class="js-warning" id="js-warning">
-    <p class="text-white">请启用JavaScript以体验绿帽社的炫酷效果！查看 <a href="https://www.enable-javascript.com/zh/" target="_blank" class="text-green-400 hover:underline">如何启用</a>。</p>
+    <p class="text-white">
+      请启用JavaScript以体验绿帽社的炫酷效果！查看
+      <a href="https://www.enable-javascript.com/zh/" target="_blank" class="text-green-400 hover:underline">如何启用</a>。
+    </p>
+  </div>
+  <div class="particle-border particle-border-left">
+    <canvas id="particle-canvas-left"></canvas>
+  </div>
+  <div class="particle-border particle-border-right">
+    <canvas id="particle-canvas-right"></canvas>
   </div>
   <canvas id="three-canvas"></canvas>
   <div id="root"></div>
+  <audio id="bgm" loop src="https://www.bensound.com/bensound-music/bensound-scifi.mp3" preload="auto"></audio>
 
   <script type="text/babel">
     function App() {
+      const [isPlaying, setIsPlaying] = React.useState(false);
+      const audioRef = React.useRef(null);
+
       React.useEffect(() => {
         document.getElementById('js-warning').classList.remove('show');
+        audioRef.current = document.getElementById('bgm');
 
-        // Three.js 科技感背景和漂浮绿帽
+        // 尝试自动播放
+        const playAudio = () => {
+          audioRef.current.play().then(() => {
+            setIsPlaying(true);
+          }).catch(() => {
+            setIsPlaying(false);
+          });
+        };
+
+        // 用户交互后启用音频
+        const enableAudio = () => {
+          if (!isPlaying) {
+            audioRef.current.play();
+            setIsPlaying(true);
+          }
+          document.removeEventListener('click', enableAudio);
+        };
+        document.addEventListener('click', enableAudio);
+
+        // Three.js 设置
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('three-canvas'), alpha: true });
@@ -128,10 +200,10 @@
         const grid = new THREE.LineSegments(gridGeometry, gridMaterial);
         scene.add(grid);
 
-        // 漂浮绿帽
+        // 漂浮绿帽数量优化到20
         const hats = [];
-        for (let i = 0; i < 5; i++) {
-          const hatGeometry = new THREE.BoxGeometry(0.5, 0.3, 0.5); // 简单立方体代表绿帽
+        for (let i = 0; i < 20; i++) {
+          const hatGeometry = new THREE.BoxGeometry(0.7, 0.4, 0.7);
           const hatMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
           const hat = new THREE.Mesh(hatGeometry, hatMaterial);
           hat.position.set(
@@ -140,16 +212,16 @@
             Math.random() * 40 - 20
           );
           hat.velocity = new THREE.Vector3(
-            (Math.random() - 0.5) * 0.05,
-            (Math.random() - 0.5) * 0.05,
-            (Math.random() - 0.5) * 0.05
+            (Math.random() - 0.5) * 0.07,
+            (Math.random() - 0.5) * 0.07,
+            (Math.random() - 0.5) * 0.07
           );
           hats.push(hat);
           scene.add(hat);
         }
 
-        // 霓虹光晕
-        const glowGeometry = new THREE.SphereGeometry(0.7, 32, 32);
+        // 霓虹光晕效果
+        const glowGeometry = new THREE.SphereGeometry(0.8, 16, 16);
         const glowMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00, transparent: true, opacity: 0.2 });
         hats.forEach(hat => {
           const glow = new THREE.Mesh(glowGeometry, glowMaterial);
@@ -158,9 +230,53 @@
           hat.glow = glow;
         });
 
-        camera.position.z = 30;
+        camera.position.z = 35;
 
-        // 动画循环
+        // 粒子流光特效
+        const createParticleSystem = (canvasId, direction) => {
+          const canvas = document.getElementById(canvasId);
+          const ctx = canvas.getContext('2d');
+          canvas.width = canvas.offsetWidth;
+          canvas.height = canvas.offsetHeight;
+
+          const particles = [];
+          for (let i = 0; i < 50; i++) {
+            particles.push({
+              x: Math.random() * canvas.width,
+              y: Math.random() * canvas.height,
+              size: Math.random() * 5 + 2,
+              speed: (Math.random() * 2 + 1) * direction,
+              opacity: Math.random() * 0.5 + 0.3
+            });
+          }
+
+          function animateParticles() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            particles.forEach(p => {
+              p.y += p.speed;
+              if (p.y > canvas.height) p.y = 0;
+              if (p.y < 0) p.y = canvas.height;
+              ctx.beginPath();
+              ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+              ctx.fillStyle = `rgba(0, 255, 0, ${p.opacity})`;
+              ctx.shadowBlur = 15;
+              ctx.shadowColor = '#00ff00';
+              ctx.fill();
+            });
+            requestAnimationFrame(animateParticles);
+          }
+          animateParticles();
+
+          window.addEventListener('resize', () => {
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+          });
+        };
+
+        createParticleSystem('particle-canvas-left', 1);
+        createParticleSystem('particle-canvas-right', -1);
+
+        // 主动画循环
         function animate() {
           requestAnimationFrame(animate);
           hats.forEach(hat => {
@@ -177,14 +293,14 @@
         }
         animate();
 
-        // 响应窗口调整
+        // 窗口调整响应
         window.addEventListener('resize', () => {
           camera.aspect = window.innerWidth / window.innerHeight;
           camera.updateProjectionMatrix();
           renderer.setSize(window.innerWidth, window.innerHeight);
         });
 
-        // 鼠标交互
+        // 鼠标交互控制相机位置
         window.addEventListener('mousemove', (event) => {
           const mouseX = (event.clientX / window.innerWidth) * 2 - 1;
           const mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
@@ -192,11 +308,25 @@
           camera.position.y = mouseY * 5;
         });
 
-        return () => {};
+        return () => {
+          window.removeEventListener('resize', () => {});
+          window.removeEventListener('mousemove', () => {});
+          document.removeEventListener('click', enableAudio);
+        };
       }, []);
 
+      const toggleBGM = () => {
+        if (isPlaying) {
+          audioRef.current.pause();
+          setIsPlaying(false);
+        } else {
+          audioRef.current.play();
+          setIsPlaying(true);
+        }
+      };
+
       const copyAddress = () => {
-        const address = '0x000000000000000000000000000000000000001';
+        const address = '0x00000000000000000000000000001';
         navigator.clipboard.writeText(address).then(() => {
           alert('合约地址已复制到剪贴板！');
         }).catch(() => {
@@ -206,10 +336,16 @@
 
       return (
         <div className="min-h-screen flex flex-col relative">
-          {/* 首页 */}
+          <button
+            className="bgm-control"
+            onClick={toggleBGM}
+            aria-label={isPlaying ? "暂停背景音乐" : "播放背景音乐"}
+          >
+            {isPlaying ? "🔊" : "🔇"}
+          </button>
           <header className="py-20 text-center">
             <img
-              src="https://via.placeholder.com/400x400/00FF00/FFFFFF?text=绿帽人物"
+              src="https://youke1.picui.cn/s1/2025/08/05/68918b0f9a5fb.png"
               alt="绿帽搞怪人物"
               className="hero-img mx-auto mb-6 rounded-full shadow-lg"
               style={{ maxWidth: '400px' }}
@@ -217,7 +353,7 @@
             <h1 className="text-6xl font-bold neon-text">绿帽币席卷市场</h1>
             <h2 className="text-4xl font-semibold text-gray-300 mt-4">加入绿色狂潮！</h2>
             <p className="mt-6 text-xl text-gray-300 max-w-3xl mx-auto">
-              $绿帽币  ($绿帽币) 是终极迷因代币，致敬背叛的痛苦，拥抱混乱的快感，乘着韭菜的泪水直冲月球！
+              ($绿帽币) 是终极迷因代币，致敬背叛的痛苦，拥抱混乱的快感，乘着韭菜的泪水直冲月球！
             </p>
             <div className="mt-8">
               <a
@@ -230,51 +366,106 @@
             </div>
           </header>
 
-          {/* 关于 */}
           <section className="py-16 bg-gray-900/50">
-            <div className="container mx-auto text-center px-4">
-              <h2 className="text-4xl font-semibold neon-text">什么是绿帽币？</h2>
-              <p className="mt-4 text-gray-300 max-w-3xl mx-auto">
-                绿帽币 ($绿帽币) 是一个迷因驱动、社区主导、100%去中心化的代币，诞生于背叛的痛苦与翻盘100倍的快感。灵感来自那些骄傲戴上绿帽的勇士。
+            <div className="container mx-auto text-center px-4 max-w-4xl">
+              <h2 className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-green-600 mb-6 drop-shadow-[0_0_10px_rgba(0,255,0,0.7)]">
+                什么是绿帽币？
+              </h2>
+              <p className="text-gray-300 text-lg leading-relaxed mb-10">
+                (<span className="font-bold">$绿帽币</span>) 是一个迷因驱动、社区主导、<span className="font-semibold">100%去中心化</span>的代币，诞生于背叛的痛苦与翻盘100倍的快感。灵感来自那些骄傲戴上绿帽的勇士。
               </p>
-              <ul className="mt-6 text-gray-300 text-left max-w-2xl mx-auto list-disc pl-6">
-                <li>无团队、无风投、无预售</li>
-                <li>100%供应归社区</li>
-                <li>合约已放弃，流动池已锁定</li>
-                <li>迷因驱动，复仇加持</li>
+              <ul className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-left max-w-xl mx-auto text-gray-300">
+                {[
+                  "无团队、无风投、无预售",
+                  "100%供应归社区",
+                  "合约已放弃，流动池已锁定",
+                  "迷因驱动，复仇加持"
+                ].map((item, idx) => (
+                  <li key={idx} className="flex items-center space-x-3">
+                    <svg
+                      className="w-6 h-6 text-green-400 flex-shrink-0"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      viewBox="0 0 24 24"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span className="text-lg">{item}</span>
+                  </li>
+                ))}
               </ul>
-              <p className="mt-4 text-gray-300">
-                通过 <a href="#" target="_blank" className="text-green-400 hover:underline">Four平台</a> 在币安智能链（BSC）上发射。
+              <p className="mt-8 text-gray-400">
+                通过 <a href="#" target="_blank" className="text-green-400 hover:underline font-semibold">Four平台</a> 在币安智能链（BSC）上发射。
               </p>
             </div>
           </section>
 
-          {/* 代币经济学 */}
           <section className="container mx-auto py-16 px-4">
             <div className="text-center">
               <h2 className="text-4xl font-semibold neon-text">代币经济学</h2>
               <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="card p-6 rounded-lg">
-                  <h3 className="text-2xl font-bold text-green-400">总供应量</h3>
-                  <p className="mt-2 text-gray-300">1000000000 $绿帽币 </p>
-                </div>
-                <div className="card p-6 rounded-lg">
-                  <h3 className="text-2xl font-bold text-green-400">买卖税</h3>
-                  <p className="mt-2 text-gray-300">0%</p>
-                </div>
-                <div className="card p-6 rounded-lg">
-                  <h3 className="text-2xl font-bold text-green-400">流动池锁定</h3>
-                  <p className="mt-2 text-gray-300">✅</p>
-                </div>
-                <div className="card p-6 rounded-lg">
-                  <h3 className="text-2xl font-bold text-green-400">合约放弃</h3>
-                  <p className="mt-2 text-gray-300">✅</p>
-                </div>
+                {[
+                  { title: "总供应量", value: "1000000000 $绿帽币" },
+                  { title: "买卖税", value: "0%" },
+                  { title: "流动池锁定", value: "✅" },
+                  { title: "合约放弃", value: "✅" }
+                ].map(({title, value}, idx) => (
+                  <button
+                    key={idx}
+                    className="
+                      relative 
+                      group 
+                      rounded-lg 
+                      p-6 
+                      bg-gray-900/40 
+                      border-2 
+                      border-green-400 
+                      text-green-400 
+                      font-bold 
+                      text-2xl
+                      shadow-[0_0_15px_rgba(0,255,0,0.6)]
+                      transition 
+                      duration-300 
+                      ease-in-out
+                      hover:scale-105
+                      hover:bg-gradient-to-r
+                      hover:from-green-400
+                      hover:to-green-600
+                      hover:text-white
+                      focus:outline-none
+                    "
+                  >
+                    <div className="mb-2 text-3xl">{title}</div>
+                    <div className="text-xl font-normal">{value}</div>
+                    <span
+                      className="
+                        absolute 
+                        -inset-px 
+                        rounded-lg 
+                        bg-gradient-to-r 
+                        from-green-600 
+                        via-green-400 
+                        to-green-600 
+                        opacity-0 
+                        group-hover:opacity-100 
+                        transition 
+                        duration-500 
+                        blur-md
+                        z-[-1]
+                      "
+                    ></span>
+                  </button>
+                ))}
               </div>
+
               <div className="mt-8">
                 <h3 className="text-2xl font-bold text-green-400">合约地址</h3>
                 <div className="flex items-center justify-center mt-4">
-                  <p className="text-gray-300 bg-gray-800 px-4 py-2 rounded-l-lg">0x000000000000000000000000000000000000001</p>
+                  <p className="text-gray-300 bg-gray-800 px-4 py-2 rounded-l-lg">
+                    0x0000000000000000000000000001
+                  </p>
                   <button
                     onClick={copyAddress}
                     className="bg-green-500 text-white py-2 px-4 rounded-r-lg hover:bg-green-600 transition"
@@ -282,7 +473,7 @@
                     复制
                   </button>
                   <a
-                    href="https://bscscan.com/address/0x000000000000000000000000000000000000001"
+                    href="https://bscscan.com/address/0x00000000000000000000000001"
                     target="_blank"
                     className="text-green-400 hover:underline ml-4"
                   >
@@ -301,7 +492,48 @@
             </div>
           </section>
 
-          {/* 社区活动 */}
+          <section className="py-16 bg-gray-900/50">
+            <div className="container mx-auto text-center px-4 max-w-4xl">
+              <h2 className="text-4xl font-extrabold neon-text mb-6">绿帽征途</h2>
+              <p className="text-gray-300 text-lg leading-relaxed mb-10">
+                绿帽币的征途才刚刚开始！我们致力于将迷因文化推向新高度，打造一个充满幽默、复仇与财富的加密狂潮。加入我们的征途，参与史诗级的社区活动，共同书写绿帽传奇！
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                {[
+                  {
+                    title: "迷因大赛",
+                    desc: "在X平台发布你的绿帽迷因，赢取$绿帽币奖励！最搞笑、最病毒式的迷因将登上社区首页！",
+                    icon: "🎨"
+                  },
+                  {
+                    title: "空投狂欢",
+                    desc: "参与我们的空投活动，持有绿帽币即可获得额外代币！关注X和Telegram获取最新空投信息。",
+                    icon: "🎁"
+                  },
+                  {
+                    title: "NFT绿帽计划",
+                    desc: "即将推出独一无二的绿帽NFT系列，每顶绿帽都代表一个复仇故事，限量发行，席卷收藏圈！",
+                    icon: "🖼️"
+                  }
+                ].map(({ title, desc, icon }, idx) => (
+                  <div
+                    key={idx}
+                    className="card p-6 rounded-lg text-left transition-transform hover:shadow-[0_0_15px_rgba(0,255,0,0.6)]"
+                    role="button"
+                    tabIndex="0"
+                  >
+                    <div className="text-4xl mb-4">{icon}</div>
+                    <h3 className="text-2xl font-bold text-green-400 mb-2">{title}</h3>
+                    <p className="text-gray-300">{desc}</p>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-8 text-gray-300">
+                关注 <a href="https://x.com/lvmaoshetuite" target="_blank" className="text-green-400 hover:underline font-semibold">X社区</a> 获取最新征途动态！
+              </p>
+            </div>
+          </section>
+
           <section className="py-16 bg-gray-900/50">
             <div className="container mx-auto text-center px-4">
               <h2 className="text-4xl font-semibold neon-text">加入终极绿帽运动</h2>
@@ -320,13 +552,12 @@
             </div>
           </section>
 
-          {/* 页脚 */}
           <footer className="py-10 text-center bg-gray-900/80">
             <p className="text-gray-300">&copy; 2025 绿帽社. 保留所有权利。用绿帽币席卷市场！</p>
             <div className="mt-4 flex justify-center space-x-6">
-              <a href="https://t.me/lvmaoshetuite" className="text-green-400 hover:underline">Telegram</a>
-              <a href="https://x.com/lvmaoshetuite" className="text-green-400 hover:underline">X</a>
-              <a href="#" className="text-green-400 hover:underline">Discord</a>
+              <a href="" className="text-green-400 hover:underline"></a>
+              <a href="https://x.com/lvmaoshetuite" className="text-green-400 hover:underline"></a>
+              <a href="#" className="text-green-400 hover:underline"></a>
             </div>
           </footer>
         </div>
