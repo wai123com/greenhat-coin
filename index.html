@@ -1,0 +1,339 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>绿帽社 - 绿帽币</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.20.6/babel.min.js"></script>
+  <style>
+    body {
+      background: #0a071b;
+      color: white;
+      font-family: 'Arial', sans-serif;
+      overflow-x: hidden;
+      margin: 0;
+    }
+    #three-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+    }
+    .neon-text {
+      text-shadow: 0 0 10px #00ff00, 0 0 20px #00ff00, 0 0 30px #00ff00;
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+    .card {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      transition: transform 0.3s ease;
+    }
+    .card:hover {
+      transform: scale(1.05);
+    }
+    .js-warning {
+      background: rgba(255, 0, 0, 0.8);
+      padding: 1rem;
+      text-align: center;
+      display: none;
+    }
+    .js-warning.show {
+      display: block;
+    }
+    @media (max-width: 640px) {
+      .text-6xl { font-size: 2.5rem; }
+      .text-4xl { font-size: 2rem; }
+      .text-2xl { font-size: 1.5rem; }
+      .hero-img { width: 100%; height: auto; }
+    }
+  </style>
+</head>
+<body>
+  <div class="js-warning" id="js-warning">
+    <p class="text-white">请启用JavaScript以体验绿帽社的炫酷效果！查看 <a href="https://www.enable-javascript.com/zh/" target="_blank" class="text-green-400 hover:underline">如何启用</a>。</p>
+  </div>
+  <canvas id="three-canvas"></canvas>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    function App() {
+      React.useEffect(() => {
+        document.getElementById('js-warning').classList.remove('show');
+
+        // Three.js 科技感背景和漂浮绿帽
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('three-canvas'), alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+
+        // 动态网格背景
+        const gridGeometry = new THREE.BufferGeometry();
+        const gridMaterial = new THREE.LineBasicMaterial({ color: 0x00ff00, opacity: 0.3, transparent: true });
+        const gridVertices = [];
+        for (let i = -50; i <= 50; i += 2) {
+          gridVertices.push(-50, 0, i, 50, 0, i);
+          gridVertices.push(i, 0, -50, i, 0, 50);
+        }
+        gridGeometry.setAttribute('position', new THREE.Float32BufferAttribute(gridVertices, 3));
+        const grid = new THREE.LineSegments(gridGeometry, gridMaterial);
+        scene.add(grid);
+
+        // 漂浮绿帽
+        const hats = [];
+        for (let i = 0; i < 5; i++) {
+          const hatGeometry = new THREE.BoxGeometry(0.5, 0.3, 0.5); // 简单立方体代表绿帽
+          const hatMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+          const hat = new THREE.Mesh(hatGeometry, hatMaterial);
+          hat.position.set(
+            Math.random() * 40 - 20,
+            Math.random() * 20 - 10,
+            Math.random() * 40 - 20
+          );
+          hat.velocity = new THREE.Vector3(
+            (Math.random() - 0.5) * 0.05,
+            (Math.random() - 0.5) * 0.05,
+            (Math.random() - 0.5) * 0.05
+          );
+          hats.push(hat);
+          scene.add(hat);
+        }
+
+        // 霓虹光晕
+        const glowGeometry = new THREE.SphereGeometry(0.7, 32, 32);
+        const glowMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00, transparent: true, opacity: 0.2 });
+        hats.forEach(hat => {
+          const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+          glow.position.copy(hat.position);
+          scene.add(glow);
+          hat.glow = glow;
+        });
+
+        camera.position.z = 30;
+
+        // 动画循环
+        function animate() {
+          requestAnimationFrame(animate);
+          hats.forEach(hat => {
+            hat.position.add(hat.velocity);
+            hat.rotation.x += 0.01;
+            hat.rotation.y += 0.01;
+            hat.glow.position.copy(hat.position);
+            if (hat.position.x > 20 || hat.position.x < -20) hat.velocity.x *= -1;
+            if (hat.position.y > 10 || hat.position.y < -10) hat.velocity.y *= -1;
+            if (hat.position.z > 20 || hat.position.z < -20) hat.velocity.z *= -1;
+          });
+          grid.rotation.y += 0.002;
+          renderer.render(scene, camera);
+        }
+        animate();
+
+        // 响应窗口调整
+        window.addEventListener('resize', () => {
+          camera.aspect = window.innerWidth / window.innerHeight;
+          camera.updateProjectionMatrix();
+          renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // 鼠标交互
+        window.addEventListener('mousemove', (event) => {
+          const mouseX = (event.clientX / window.innerWidth) * 2 - 1;
+          const mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
+          camera.position.x = mouseX * 5;
+          camera.position.y = mouseY * 5;
+        });
+
+        return () => {};
+      }, []);
+
+      const copyAddress = () => {
+        const address = '0x1234567890abcdef1234567890abcdef12345678';
+        navigator.clipboard.writeText(address).then(() => {
+          alert('合约地址已复制到剪贴板！');
+        }).catch(() => {
+          alert('复制失败，请手动复制地址！');
+        });
+      };
+
+      return (
+        <div className="min-h-screen flex flex-col relative">
+          {/* 首页 */}
+          <header className="py-20 text-center">
+            <img
+              src="https://via.placeholder.com/400x400/00FF00/FFFFFF?text=绿帽人物"
+              alt="绿帽搞怪人物"
+              className="hero-img mx-auto mb-6 rounded-full shadow-lg"
+              style={{ maxWidth: '400px' }}
+            />
+            <h1 className="text-6xl font-bold neon-text">绿帽币席卷市场</h1>
+            <h2 className="text-4xl font-semibold text-gray-300 mt-4">加入绿色狂潮！</h2>
+            <p className="mt-6 text-xl text-gray-300 max-w-3xl mx-auto">
+              $绿帽币  ($绿帽币) 是终极迷因代币，致敬背叛的痛苦，拥抱混乱的快感，乘着韭菜的泪水直冲月球！
+            </p>
+            <div className="mt-8">
+              <a
+                href="#"
+                target="_blank"
+                className="bg-green-500 text-white py-3 px-8 rounded-full text-xl font-bold hover:bg-green-600 transition neon-text"
+              >
+                🚀 立即购买
+              </a>
+            </div>
+          </header>
+
+          {/* 关于 */}
+          <section className="py-16 bg-gray-900/50">
+            <div className="container mx-auto text-center px-4">
+              <h2 className="text-4xl font-semibold neon-text">什么是绿帽币？</h2>
+              <p className="mt-4 text-gray-300 max-w-3xl mx-auto">
+                绿帽币 ($绿帽币) 是一个迷因驱动、社区主导、100%去中心化的代币，诞生于背叛的痛苦与翻盘100倍的快感。灵感来自那些骄傲戴上绿帽的勇士。
+              </p>
+              <ul className="mt-6 text-gray-300 text-left max-w-2xl mx-auto list-disc pl-6">
+                <li>无团队、无风投、无预售</li>
+                <li>100%供应归社区</li>
+                <li>合约已放弃，流动池已锁定</li>
+                <li>迷因驱动，复仇加持</li>
+              </ul>
+              <p className="mt-4 text-gray-300">
+                通过 <a href="#" target="_blank" className="text-green-400 hover:underline">Four平台</a> 在币安智能链（BSC）上发射。
+              </p>
+            </div>
+          </section>
+
+          {/* 代币经济学 */}
+          <section className="container mx-auto py-16 px-4">
+            <div className="text-center">
+              <h2 className="text-4xl font-semibold neon-text">代币经济学</h2>
+              <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="card p-6 rounded-lg">
+                  <h3 className="text-2xl font-bold text-green-400">总供应量</h3>
+                  <p className="mt-2 text-gray-300">1000000000 $绿帽币 </p>
+                </div>
+                <div className="card p-6 rounded-lg">
+                  <h3 className="text-2xl font-bold text-green-400">买卖税</h3>
+                  <p className="mt-2 text-gray-300">0%</p>
+                </div>
+                <div className="card p-6 rounded-lg">
+                  <h3 className="text-2xl font-bold text-green-400">流动池锁定</h3>
+                  <p className="mt-2 text-gray-300">✅</p>
+                </div>
+                <div className="card p-6 rounded-lg">
+                  <h3 className="text-2xl font-bold text-green-400">合约放弃</h3>
+                  <p className="mt-2 text-gray-300">✅</p>
+                </div>
+              </div>
+              <div className="mt-8">
+                <h3 className="text-2xl font-bold text-green-400">合约地址</h3>
+                <div className="flex items-center justify-center mt-4">
+                  <p className="text-gray-300 bg-gray-800 px-4 py-2 rounded-l-lg">0x000000000000000000000000000000000000001</p>
+                  <button
+                    onClick={copyAddress}
+                    className="bg-green-500 text-white py-2 px-4 rounded-r-lg hover:bg-green-600 transition"
+                  >
+                    复制
+                  </button>
+                  <a
+                    href="https://bscscan.com/address/0x1234567890abcdef1234567890abcdef12345678"
+                    target="_blank"
+                    className="text-green-400 hover:underline ml-4"
+                  >
+                    在BSCScan查看
+                  </a>
+                </div>
+                <p className="mt-4 text-gray-300">
+                  通过 <a href="#" target="_blank" className="text-green-400 hover:underline">Four平台</a> 参与绿帽币发射！
+                </p>
+              </div>
+              <img
+                src="https://via.placeholder.com/300x200/00FF00/FFFFFF?text=绿帽炸弹"
+                alt="绿帽炸弹"
+                className="mt-8 mx-auto rounded-lg shadow-lg hover:scale-105 transition-transform"
+              />
+            </div>
+          </section>
+
+          {/* 社区活动 */}
+          <section className="py-16 bg-gray-900/50">
+            <div className="container mx-auto text-center px-4">
+              <h2 className="text-4xl font-semibold neon-text">加入终极绿帽运动</h2>
+              <p className="mt-4 text-gray-300 max-w-3xl mx-auto">
+                参与迷因大赛、空投活动和线上搞乱派对！关注我们的X社区，加入绿色狂潮，席卷加密圈！
+              </p>
+              <div className="mt-8">
+                <a
+                  href="https://x.com/lvmaoshetuite"
+                  target="_blank"
+                  className="bg-green-500 text-white py-3 px-8 rounded-full text-xl font-bold hover:bg-green-600 transition neon-text"
+                >
+                  加入X社区
+                </a>
+              </div>
+            </div>
+          </section>
+
+          {/* 页脚 */}
+          <footer className="py-10 text-center bg-gray-900/80">
+            <p className="text-gray-300">&copy; 2025 绿帽社. 保留所有权利。用绿帽币席卷市场！</p>
+            <div className="mt-4 flex justify-center space-x-6">
+              <a href="https://t.me/lvmaoshetuite" className="text-green-400 hover:underline">Telegram</a>
+              <a href="https://x.com/lvmaoshetuite" className="text-green-400 hover:underline">X</a>
+              <a href="#" className="text-green-400 hover:underline">Discord</a>
+            </div>
+          </footer>
+        </div>
+      );
+    }
+
+    ReactDOM.render(<App />, document.getElementById('root'));
+  </script>
+</body>
+</html>
